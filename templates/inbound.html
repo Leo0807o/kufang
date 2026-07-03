@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>入库登记</h1>
+    <div class="subtitle">增加本组库存 · {% if user_group %}{{ user_group.name }}{% endif %}</div>
+  </div>
+</div>
+
+<div class="panel" style="max-width:720px;">
+  <div class="panel-body">
+    <form method="post" id="inbound-form">
+      {% csrf_token %}
+      <!-- Part action toggle -->
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="radio" name="part_action" value="existing" checked onchange="togglePartAction()">
+          <span style="font-size:14px;font-weight:500;">选择已有备件</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="radio" name="part_action" value="new" onchange="togglePartAction()">
+          <span style="font-size:14px;font-weight:500;">新建备件</span>
+        </label>
+      </div>
+
+      <!-- Existing part selection -->
+      <div id="existing-part-block">
+        <div class="form-row">
+          <div class="form-group">
+            <label>备件选择</label>
+            <select name="part_id">
+              <option value="">-- 选择备件 --</option>
+              {% for p in existing_parts %}
+              <option value="{{ p.id }}" {% if post_data.part_id == p.id|stringformat:'s' %}selected{% endif %}>
+                {{ p.name }} (当前: {{ p.quantity }}{{ p.unit }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>入库数量</label>
+            <input type="number" name="quantity" value="{{ post_data.quantity|default:'1' }}" min="1" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- New part fields -->
+      <div id="new-part-block" style="display:none;">
+        <div class="form-group">
+          <label>名称 <span style="color:var(--danger);">*</span></label>
+          <input type="text" name="name" value="{{ post_data.name|default:'' }}" placeholder="请输入备件名称">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>规格型号</label>
+            <input type="text" name="spec" value="{{ post_data.spec|default:'' }}">
+          </div>
+          <div class="form-group">
+            <label>单位</label>
+            <select name="unit">
+              {% for k,v in units.items %}
+              <option value="{{ k }}" {% if post_data.unit == k %}selected{% endif %}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>入库数量</label>
+            <input type="number" name="quantity_new" value="{{ post_data.quantity|default:'1' }}" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>安全库存</label>
+            <input type="number" name="safety_stock" value="{{ post_data.safety_stock|default:'10' }}" min="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>存放位置</label>
+            <input type="text" name="location" value="{{ post_data.location|default:'' }}" placeholder="如: A-03-12">
+          </div>
+          <div class="form-group">
+            <label>使用状态</label>
+            <select name="status">
+              <option value="idle">闲置</option>
+              <option value="in_use">使用中</option>
+              <option value="scrapped">已报废</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>质量等级</label>
+            <select name="quality">
+              <option value="new">全新</option>
+              <option value="good" selected>良好</option>
+              <option value="used">旧件</option>
+              <option value="repair">待修</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>生产厂家</label>
+            <input type="text" name="manufacturer" value="{{ post_data.manufacturer|default:'' }}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>配置</label>
+          <textarea name="configuration" placeholder="技术配置信息">{{ post_data.configuration|default:'' }}</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>重要程度</label>
+            <select name="importance">
+              <option value="normal">一般</option>
+              <option value="important">重要</option>
+              <option value="critical">核心</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>涉密等级</label>
+            <select name="security_level">
+              <option value="internal">内部</option>
+              <option value="secret">涉密</option>
+              <option value="public">非密</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="display:none;">
+          <label>品种标识码</label>
+          <input type="text" name="variety_code" value="{{ post_data.variety_code|default:'' }}">
+        </div>
+        <div class="form-group" style="display:none;">
+          <label>唯一资产码</label>
+          <input type="text" name="asset_code" value="{{ post_data.asset_code|default:'' }}" placeholder="手动填写资产码（非唯一）">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>入库类型</label>
+        <select name="type">
+          {% for k,v in types.items %}
+          <option value="{{ k }}" {% if post_data.type == k %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>备注 / 单号</label>
+        <textarea name="note" placeholder="采购单号、归还原因等（选填）">{{ post_data.note|default:'' }}</textarea>
+      </div>
+      <div class="form-hint">
+        💡 入库将自动记录到「{% if user_group %}{{ user_group.name }}{% endif %}」，操作后生成流水日志。
+      </div>
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">✅ 确认入库</button>
+        <a href="{% url 'inventory_list' %}" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function togglePartAction() {
+  var action = document.querySelector('input[name="part_action"]:checked').value;
+  document.getElementById('existing-part-block').style.display = action === 'existing' ? 'block' : 'none';
+  document.getElementById('new-part-block').style.display = action === 'new' ? 'block' : 'none';
+}
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+  var checked = document.querySelector('input[name="part_action"]:checked');
+  if (checked) togglePartAction();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库房备件管理系统 — Demo</title>
+<style>
+/* ===== CSS Variables (from DESIGN.md) ===== */
+:root {
+  --primary: #ff385c;
+  --primary-active: #e00b41;
+  --primary-disabled: #ffd1da;
+  --ink: #222222;
+  --body: #3f3f3f;
+  --muted: #6a6a6a;
+  --muted-soft: #929292;
+  --hairline: #dddddd;
+  --hairline-soft: #ebebeb;
+  --border-strong: #c1c1c1;
+  --canvas: #ffffff;
+  --surface-soft: #f7f7f7;
+  --surface-strong: #f2f2f2;
+  --success: #2d8a56;
+  --warning: #e8a317;
+  --danger: #c13515;
+  --info: #428bff;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.08);
+  --font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ===== Reset ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-family);
+  color: var(--body);
+  background: var(--surface-soft);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: 240px;
+  background: var(--canvas);
+  border-right: 1px solid var(--hairline);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+.sidebar-logo {
+  padding: 0 24px 24px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-logo .icon {
+  width: 36px; height: 36px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.sidebar-group {
+  margin: 0 16px 16px;
+  padding: 10px 12px;
+  background: var(--surface-soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.sidebar-group .badge {
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.sidebar-nav { flex: 1; padding: 0 12px; }
+.sidebar-nav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.sidebar-nav a:hover { background: var(--surface-soft); color: var(--ink); }
+.sidebar-nav a.active { background: var(--surface-strong); color: var(--ink); font-weight: 600; }
+.sidebar-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--hairline-soft);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; color: var(--ink);
+}
+.sidebar-footer .avatar {
+  width: 32px; height: 32px;
+  background: var(--muted-soft);
+  color: #fff;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+}
+
+/* ===== Main Content ===== */
+.main {
+  margin-left: 240px;
+  flex: 1;
+  padding: 32px;
+  min-width: 0;
+}
+
+/* ===== Page Header ===== */
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 28px;
+}
+.page-header h1 { font-size: 28px; font-weight: 700; color: var(--ink); }
+.page-header .subtitle { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+/* ===== Stat Cards ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--canvas);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  border: 1px solid var(--hairline-soft);
+  transition: box-shadow 0.2s;
+}
+.stat-card:hover { box-shadow: var(--shadow-card-hover); }
+.stat-card .stat-label { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+.stat-card .stat-value { font-size: 32px; font-weight: 700; color: var(--ink); }
+.stat-card .stat-meta { font-size: 12px; color: var(--muted-soft); margin-top: 4px; }
+.stat-card.warning .stat-value { color: var(--warning); }
+.stat-card.danger .stat-value { color: var(--danger); }
+
+/* ===== Two Column Layout ===== */
+.two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 28px; }
+
+/* ===== Panel ===== */
+.panel {
+  background: var(--canvas);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline-soft);
+}
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--hairline-soft);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.panel-header h3 { font-size: 16px; font-weight: 600; color: var(--ink); }
+.panel-body { padding: 16px 20px; }
+.panel-body.no-padding { padding: 0; }
+
+/* ===== Alert List ===== */
+.alert-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.alert-item:last-child { border-bottom: none; padding-bottom: 0; }
+.alert-item .dot {
+  width: 8px; height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.alert-item .dot.warn { background: var(--warning); }
+.alert-item .dot.danger { background: var(--danger); }
+.alert-item .info { flex: 1; }
+.alert-item .name { font-size: 14px; font-weight: 500; color: var(--ink); }
+.alert-item .detail { font-size: 12px; color: var(--muted); }
+
+/* ===== Activity Feed ===== */
+.activity-item {
+  display: flex; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline-soft);
+  font-size: 13px;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-item .time { color: var(--muted-soft); white-space: nowrap; font-size: 12px; }
+.activity-item .desc { color: var(--body); }
+.activity-item .qty { font-weight: 600; }
+.activity-item .qty.in { color: var(--success); }
+.activity-item .qty.out { color: var(--danger); }
+
+/* ===== Table ===== */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead th {
+  text-align: left; padding: 12px 16px;
+  color: var(--muted); font-weight: 500; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-soft);
+}
+tbody td { padding: 12px 16px; border-bottom: 1px solid var(--hairline-soft); color: var(--body); }
+tbody tr:hover { background: var(--surface-soft); }
+.group-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 600;
+}
+.group-tag.a { background: #fff0f3; color: var(--primary); }
+.group-tag.b { background: #e8f5ff; color: #1a73e8; }
+.group-tag.c { background: #f0fdf4; color: #2d8a56; }
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 600;
+}
+.status-badge.normal { background: #f0fdf4; color: var(--success); }
+.status-badge.warn { background: #fffbeb; color: var(--warning); }
+.status-badge.out { background: #fff0f0; color: var(--danger); }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 14px; font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn-primary {
+  background: var(--primary); color: #fff;
+}
+.btn-primary:hover { background: var(--primary-active); }
+.btn-secondary {
+  background: var(--canvas); color: var(--ink);
+  border-color: var(--hairline);
+}
+.btn-secondary:hover { background: var(--surface-soft); }
+.btn-sm { padding: 6px 14px; font-size: 12px; border-radius: var(--radius-sm); }
+.btn-xs { padding: 4px 10px; font-size: 11px; border-radius: var(--radius-full); }
+.btn-ghost {
+  background: transparent; color: var(--muted);
+}
+.btn-ghost:hover { background: var(--surface-soft); color: var(--ink); }
+.btn-danger { background: var(--canvas); color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { opacity: 0.9; }
+
+.action-btns { display: flex; gap: 6px; }
+
+/* ===== Toolbar ===== */
+.toolbar {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 16px 20px;
+}
+.search-box {
+  flex: 1; min-width: 200px;
+  position: relative;
+}
+.search-box input {
+  width: 100%; height: 42px;
+  padding: 0 16px 0 40px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family);
+  font-size: 14px;
+  outline: none;
+  color: var(--ink);
+  background: var(--surface-soft);
+  transition: all 0.2s;
+}
+.search-box input:focus { border-color: var(--primary); background: var(--canvas); }
+.search-box .search-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--muted-soft); font-size: 14px;
+}
+.filter-select {
+  height: 42px;
+  padding: 0 36px 0 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--canvas);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a6a6a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+/* ===== Modal ===== */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--canvas);
+  border-radius: var(--radius-lg);
+  width: 520px; max-width: 90vw;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--hairline-soft);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h2 { font-size: 18px; font-weight: 600; color: var(--ink); }
+.modal-close {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-full);
+  border: none; background: transparent;
+  font-size: 20px; color: var(--muted);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--surface-soft); color: var(--ink); }
+.modal-body { padding: 24px; }
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--hairline-soft);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+/* ===== Form ===== */
+.form-group { margin-bottom: 18px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-group label {
+  display: block;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  margin-bottom: 6px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group textarea { height: 80px; padding: 10px 14px; resize: vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--primary);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-hint { font-size: 12px; color: var(--muted-soft); margin-top: 4px; }
+
+/* ===== Pagination ===== */
+.pagination {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px;
+  font-size: 13px; color: var(--muted);
+}
+.pagination-btns { display: flex; gap: 4px; }
+.pagination-btns button {
+  min-width: 36px; height: 36px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-family);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.pagination-btns button:hover { background: var(--surface-soft); }
+.pagination-btns button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* ===== Tabs ===== */
+.tabs {
+  display: flex; gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.tab {
+  padding: 12px 20px;
+  font-size: 14px; font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+
+/* ===== Toast ===== */
+.toast-container {
+  position: fixed; top: 20px; right: 20px;
+  z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 14px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 500;
+  color: #fff;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.info { background: var(--info); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted-soft);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ===== Inventory Detail Pane ===== */
+.detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  font-size: 14px;
+}
+.detail-item label { font-size: 12px; color: var(--muted); font-weight: 500; display: block; }
+.detail-item span { color: var(--ink); font-weight: 500; }
+
+/* ===== Hidden Sections ===== */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ===== Responsive ===== */
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 16px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .toolbar { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="icon">📦</div>
+    库房管理
+  </div>
+  <div class="sidebar-group">
+    👤 当前所属组 <span class="badge">主机组 A</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="active" data-section="dashboard" onclick="switchSection('dashboard')">
+      📊 仪表盘
+    </a>
+    <a data-section="inventory" onclick="switchSection('inventory')">
+      📋 库存列表
+    </a>
+    <a data-section="inbound" onclick="switchSection('inbound')">
+      📥 入库登记
+    </a>
+    <a data-section="outbound" onclick="switchSection('outbound')">
+      📤 出库登记
+    </a>
+    <a data-section="log" onclick="switchSection('log')">
+      📜 出入库流水
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">张</div>
+    <div>
+      <div style="font-weight:600;">张三</div>
+      <div style="font-size:12px;color:var(--muted-soft);">主机组 · 操作员</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== Main Content ===== -->
+<main class="main">
+
+  <!-- ========== DASHBOARD ========== -->
+  <section class="section active" id="section-dashboard">
+    <div class="page-header">
+      <div>
+        <h1>仪表盘</h1>
+        <div class="subtitle">主机组 (A组) · 概览</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);">最后更新：<span id="dash-time">--</span></div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">本组库存总数</div>
+        <div class="stat-value">1,286</div>
+        <div class="stat-meta">涵盖 48 种备件</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">本月入库次数</div>
+        <div class="stat-value" style="color:var(--success);">23</div>
+        <div class="stat-meta">较上月 ↑ 12%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">本月出库次数</div>
+        <div class="stat-value">18</div>
+        <div class="stat-meta">较上月 ↓ 5%</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-label">低库存预警</div>
+        <div class="stat-value">5</div>
+        <div class="stat-meta" style="color:var(--warning);">需及时补货</div>
+      </div>
+    </div>
+
+    <!-- Two Column -->
+    <div class="two-col">
+      <!-- Low Stock Alerts -->
+      <div class="panel">
+        <div class="panel-header">
+          <h3>⚠️ 低库存预警 Top 5</h3>
+          <a href="#" onclick="switchSection('inventory')" style="font-size:13px;color:var(--primary);text-decoration:none;font-weight:500;">查看全部 →</a>
+        </div>
+        <div class="panel-body">
+          <div class="alert-item">
+            <div class="dot danger"></div>
+            <div class="info">
+              <div class="name">DDR4 32GB 内存条</div>
+              <div class="detail">当前库存 2 · 安全库存 10 · 主机组</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openInbound()">补货</button>
+          </div>
+          <div class="alert-item">
+            <div class="dot danger"></div>
+            <div class="info">
+              <div class="name">Intel Xeon 4210 CPU</div>
+              <div class="detail">当前库存 0 · 安全库存 5 · 主机组</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openInbound()">补货</button>
+          </div>
+          <div class="alert-item">
+            <div class="dot warn"></div>
+            <div class="info">
+              <div class="name">SAS 2.4T 10K 硬盘</div>
+              <div class="detail">当前库存 5 · 安全库存 15 · 主机组</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openInbound()">补货</button>
+          </div>
+          <div class="alert-item">
+            <div class="dot warn"></div>
+            <div class="info">
+              <div class="name">RAID 阵列卡</div>
+              <div class="detail">当前库存 3 · 安全库存 8 · 主机组</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openInbound()">补货</button>
+          </div>
+          <div class="alert-item">
+            <div class="dot warn"></div>
+            <div class="info">
+              <div class="name">光模块 10G SFP+</div>
+              <div class="detail">当前库存 8 · 安全库存 20 · 主机组</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openInbound()">补货</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="panel">
+        <div class="panel-header">
+          <h3>🕐 全局动态</h3>
+          <a href="#" onclick="switchSection('log')" style="font-size:13px;color:var(--primary);text-decoration:none;font-weight:500;">全部流水 →</a>
+        </div>
+        <div class="panel-body">
+          <div class="activity-item">
+            <span class="time">14:32</span>
+            <span class="desc">李四 · 主机组 入库 <span class="qty in">+12 条</span> DDR4 32GB 内存条</span>
+          </div>
+          <div class="activity-item">
+            <span class="time">13:15</span>
+            <span class="desc">王五 · 冷却组 出库 <span class="qty out">-3 台</span> 空调滤网</span>
+          </div>
+          <div class="activity-item">
+            <span class="time">11:48</span>
+            <span class="desc">张三 · 主机组 出库 <span class="qty out">-2 块</span> SAS 2.4T 10K 硬盘</span>
+          </div>
+          <div class="activity-item">
+            <span class="time">10:20</span>
+            <span class="desc">赵六 · 电力组 入库 <span class="qty in">+5 个</span> 电源模块 2000W</span>
+          </div>
+          <div class="activity-item">
+            <span class="time">09:05</span>
+            <span class="desc">李四 · 主机组 出库 <span class="qty out">-1 颗</span> Intel Xeon 4210 CPU</span>
+          </div>
+          <div class="activity-item">
+            <span class="time">昨日 17:30</span>
+            <span class="desc">张三 · 主机组 盘盈 <span class="qty in">+3 根</span> 光纤跳线 LC-LC</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== INVENTORY LIST ========== -->
+  <section class="section" id="section-inventory">
+    <div class="page-header">
+      <div>
+        <h1>库存列表</h1>
+        <div class="subtitle">管理所有备件库存信息</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="openInbound()">📥 入库登记</button>
+        <button class="btn btn-secondary" onclick="openOutbound()">📤 出库登记</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="inv-search" placeholder="搜索备件名称、编码、规格型号..." oninput="filterInventory()">
+        </div>
+        <select class="filter-select" id="inv-group" onchange="filterInventory()">
+          <option value="">全部组别</option>
+          <option value="主机组">主机组 (A)</option>
+          <option value="冷却组">冷却组 (B)</option>
+          <option value="电力组">电力组 (C)</option>
+        </select>
+        <select class="filter-select" id="inv-status" onchange="filterInventory()">
+          <option value="">全部状态</option>
+          <option value="normal">正常</option>
+          <option value="warn">预警</option>
+          <option value="out">缺货</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>备件编码</th>
+              <th>名称</th>
+              <th>规格型号</th>
+              <th>当前数量</th>
+              <th>单位</th>
+              <th>所属组</th>
+              <th>状态</th>
+              <th>最后更新</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <span id="inv-count">共 0 条记录</span>
+        <div class="pagination-btns">
+          <button>‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== INBOUND REGISTRATION ========== -->
+  <section class="section" id="section-inbound">
+    <div class="page-header">
+      <div>
+        <h1>入库登记</h1>
+        <div class="subtitle">增加本组库存 · 主机组 (A)</div>
+      </div>
+    </div>
+
+    <div class="panel" style="max-width:640px;">
+      <div class="panel-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>备件选择</label>
+            <select id="inbound-part">
+              <option value="">搜索或选择备件...</option>
+              <option value="existing">DDR4 32GB 内存条 (当前: 2)</option>
+              <option value="existing">Intel Xeon 4210 CPU (当前: 0)</option>
+              <option value="existing">SAS 2.4T 10K 硬盘 (当前: 5)</option>
+              <option value="new">+ 新建备件</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>入库数量</label>
+            <input type="number" id="inbound-qty" placeholder="请输入数量" min="1" value="1">
+          </div>
+        </div>
+        <div class="form-group" id="new-part-fields" style="display:none;">
+          <div class="form-row">
+            <div class="form-group">
+              <label>新备件名称</label>
+              <input type="text" placeholder="请输入备件名称">
+            </div>
+            <div class="form-group">
+              <label>备件编码</label>
+              <input type="text" placeholder="自动生成或手动输入">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>规格型号</label>
+              <input type="text" placeholder="请输入规格型号">
+            </div>
+            <div class="form-group">
+              <label>单位</label>
+              <select>
+                <option>个</option><option>台</option><option>条</option><option>块</option><option>套</option><option>根</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>安全库存</label>
+              <input type="number" placeholder="预警阈值" min="0" value="10">
+            </div>
+            <div class="form-group">
+              <label>存放位置</label>
+              <input type="text" placeholder="如: A-03-12">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>入库类型</label>
+          <select id="inbound-type">
+            <option>采购入库</option>
+            <option>归还入库</option>
+            <option>盘盈</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>备注 / 单号</label>
+          <textarea placeholder="采购单号、归还原因等（选填）"></textarea>
+        </div>
+        <div class="form-hint">
+          💡 入库将自动记录到「主机组 (A)」，操作后生成流水日志。
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="submitInbound()">✅ 确认入库</button>
+          <button class="btn btn-secondary" onclick="resetInboundForm()">重置</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== OUTBOUND REGISTRATION ========== -->
+  <section class="section" id="section-outbound">
+    <div class="page-header">
+      <div>
+        <h1>出库登记</h1>
+        <div class="subtitle">扣减本组库存 · 主机组 (A)</div>
+      </div>
+    </div>
+
+    <div class="panel" style="max-width:640px;">
+      <div class="panel-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>备件选择（仅显示本组有库存的备件）</label>
+            <select id="outbound-part">
+              <option value="">请选择备件...</option>
+              <option>DDR4 32GB 内存条 (库存: 2)</option>
+              <option>SAS 2.4T 10K 硬盘 (库存: 5)</option>
+              <option>RAID 阵列卡 (库存: 3)</option>
+              <option>光模块 10G SFP+ (库存: 8)</option>
+              <option>光纤跳线 LC-LC 3m (库存: 45)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>出库数量</label>
+            <input type="number" id="outbound-qty" placeholder="不可超过当前库存" min="1" value="1">
+            <div class="form-hint">当前库存：<span id="outbound-stock" style="color:var(--ink);font-weight:600;">--</span></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>领用人</label>
+            <input type="text" placeholder="请输入领用人姓名">
+          </div>
+          <div class="form-group">
+            <label>用途</label>
+            <select>
+              <option>设备维修</option><option>设备更换</option><option>新项目部署</option><option>借用</option><option>其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>备注</label>
+          <textarea placeholder="出库原因、工单编号等（选填）"></textarea>
+        </div>
+        <div class="form-hint">
+          ⚠️ 出库数量不可超过当前库存，后端将二次校验 group_id，操作后生成流水日志。
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px;">
+          <button class="btn btn-danger" onclick="submitOutbound()">📤 确认出库</button>
+          <button class="btn btn-secondary" onclick="resetOutboundForm()">重置</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TRANSACTION LOG ========== -->
+  <section class="section" id="section-log">
+    <div class="page-header">
+      <div>
+        <h1>出入库流水</h1>
+        <div class="subtitle">所有操作记录 · 审计日志</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="搜索备件名称、操作人..." oninput="filterLog()">
+        </div>
+        <select class="filter-select" id="log-type" onchange="filterLog()">
+          <option value="">全部类型</option>
+          <option value="入库">入库</option>
+          <option value="出库">出库</option>
+        </select>
+        <select class="filter-select" id="log-group" onchange="filterLog()">
+          <option value="">全部组别</option>
+          <option value="主机组">主机组 (A)</option>
+          <option value="冷却组">冷却组 (B)</option>
+          <option value="电力组">电力组 (C)</option>
+        </select>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>操作时间</th>
+              <th>操作人</th>
+              <th>所属组</th>
+              <th>备件名称</th>
+              <th>变动数量</th>
+              <th>变动前库存</th>
+              <th>变动后库存</th>
+              <th>类型</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span id="log-count">共 0 条记录</span>
+        <div class="pagination-btns">
+          <button>‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== Detail Modal ===== -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="detail-title">备件详情</h2>
+      <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="detail-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-detail')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast Container ===== -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ==================== DATA STORE ====================
+const GROUPS = ['主机组', '冷却组', '电力组'];
+const CURRENT_USER = { name: '张三', group: '主机组', role: 'operator' };
+const UNITS = ['个', '台', '条', '块', '套', '根', '颗', '包'];
+
+let inventoryData = [
+  { id: 1, code: 'HOST-001', name: 'DDR4 32GB 内存条', spec: 'DDR4-3200 ECC', qty: 2, unit: '条', group: '主机组', safetyStock: 10, location: 'A-01-03', updatedAt: '2026-07-01 14:30' },
+  { id: 2, code: 'HOST-002', name: 'Intel Xeon 4210 CPU', spec: 'Silver 4210 2.2GHz', qty: 0, unit: '颗', group: '主机组', safetyStock: 5, location: 'A-01-05', updatedAt: '2026-06-28 09:05' },
+  { id: 3, code: 'HOST-003', name: 'SAS 2.4T 10K 硬盘', spec: '2.4TB 10000RPM SAS', qty: 5, unit: '块', group: '主机组', safetyStock: 15, location: 'A-02-01', updatedAt: '2026-07-01 11:48' },
+  { id: 4, code: 'HOST-004', name: 'RAID 阵列卡', spec: 'LSI MegaRAID 9361-8i', qty: 3, unit: '块', group: '主机组', safetyStock: 8, location: 'A-02-04', updatedAt: '2026-06-25 16:20' },
+  { id: 5, code: 'HOST-005', name: '光模块 10G SFP+', spec: 'SFP+ 10G SR 850nm', qty: 8, unit: '个', group: '主机组', safetyStock: 20, location: 'A-03-01', updatedAt: '2026-06-30 10:10' },
+  { id: 6, code: 'HOST-006', name: '光纤跳线 LC-LC 3m', spec: 'LC-LC OM3 多模', qty: 45, unit: '根', group: '主机组', safetyStock: 15, location: 'A-03-02', updatedAt: '2026-06-29 17:30' },
+  { id: 7, code: 'HOST-007', name: '服务器电源 2000W', spec: '2000W Platinum', qty: 12, unit: '个', group: '主机组', safetyStock: 6, location: 'A-01-08', updatedAt: '2026-06-20 08:15' },
+  { id: 8, code: 'HOST-008', name: '主板 Supermicro X11', spec: 'X11DPi-NT', qty: 4, unit: '块', group: '主机组', safetyStock: 3, location: 'A-02-06', updatedAt: '2026-06-18 14:00' },
+  { id: 9, code: 'COOL-001', name: '空调滤网', spec: '600×600mm G4', qty: 30, unit: '个', group: '冷却组', safetyStock: 10, location: 'B-01-01', updatedAt: '2026-07-01 13:15' },
+  { id: 10, code: 'COOL-002', name: '冷却液', spec: '25L 乙二醇', qty: 8, unit: '桶', group: '冷却组', safetyStock: 5, location: 'B-01-03', updatedAt: '2026-06-22 09:30' },
+  { id: 11, code: 'ELEC-001', name: '电源模块 2000W', spec: 'AC-DC 2000W 48V', qty: 20, unit: '个', group: '电力组', safetyStock: 10, location: 'C-01-01', updatedAt: '2026-07-01 10:20' },
+  { id: 12, code: 'ELEC-002', name: 'UPS 电池', spec: '12V 100Ah', qty: 15, unit: '块', group: '电力组', safetyStock: 8, location: 'C-01-04', updatedAt: '2026-06-15 11:00' },
+];
+
+let logData = [
+  { time: '2026-07-01 14:32', operator: '李四', group: '主机组', part: 'DDR4 32GB 内存条', delta: +12, before: 2, after: 14, type: '入库', note: '采购入库 PO-2026-0782' },
+  { time: '2026-07-01 13:15', operator: '王五', group: '冷却组', part: '空调滤网', delta: -3, before: 33, after: 30, type: '出库', note: '季度更换' },
+  { time: '2026-07-01 11:48', operator: '张三', group: '主机组', part: 'SAS 2.4T 10K 硬盘', delta: -2, before: 7, after: 5, type: '出库', note: '设备维修 WO-2026-451' },
+  { time: '2026-07-01 10:20', operator: '赵六', group: '电力组', part: '电源模块 2000W', delta: +5, before: 15, after: 20, type: '入库', note: '采购入库 PO-2026-0790' },
+  { time: '2026-06-30 09:05', operator: '李四', group: '主机组', part: 'Intel Xeon 4210 CPU', delta: -1, before: 1, after: 0, type: '出库', note: '紧急更换' },
+  { time: '2026-06-29 17:30', operator: '张三', group: '主机组', part: '光纤跳线 LC-LC 3m', delta: +3, before: 42, after: 45, type: '入库', note: '盘盈' },
+  { time: '2026-06-28 15:00', operator: '李四', group: '主机组', part: 'DDR4 32GB 内存条', delta: +10, before: 4, after: 14, type: '入库', note: '采购入库 PO-2026-0765' },
+  { time: '2026-06-27 10:30', operator: '张三', group: '主机组', part: 'RAID 阵列卡', delta: -2, before: 5, after: 3, type: '出库', note: '新项目部署' },
+  { time: '2026-06-25 09:00', operator: '李四', group: '主机组', part: '光模块 10G SFP+', delta: -4, before: 12, after: 8, type: '出库', note: '网络扩容' },
+  { time: '2026-06-24 14:20', operator: '赵六', group: '电力组', part: 'UPS 电池', delta: -5, before: 20, after: 15, type: '出库', note: '电池更换计划' },
+];
+
+// ==================== NAVIGATION ====================
+function switchSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+
+  const section = document.getElementById('section-' + name);
+  if (section) section.classList.add('active');
+
+  const link = document.querySelector(`[data-section="${name}"]`);
+  if (link) link.classList.add('active');
+
+  if (name === 'inventory') renderInventory();
+  if (name === 'log') renderLog();
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 3000);
+}
+
+// ==================== MODAL ====================
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ==================== INVENTORY ====================
+function getStatus(qty, safety) {
+  if (qty <= 0) return 'out';
+  if (qty < safety) return 'warn';
+  return 'normal';
+}
+
+function getStatusLabel(status) {
+  const map = { normal: '正常', warn: '预警', out: '缺货' };
+  return map[status] || status;
+}
+
+function getGroupClass(group) {
+  if (group === '主机组') return 'a';
+  if (group === '冷却组') return 'b';
+  return 'c';
+}
+
+function isOwner(item) {
+  return item.group === CURRENT_USER.group;
+}
+
+function renderInventory(filteredData) {
+  const data = filteredData || inventoryData;
+  const tbody = document.getElementById('inv-tbody');
+  document.getElementById('inv-count').textContent = `共 ${data.length} 条记录`;
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📭</div><p>没有匹配的库存记录</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(item => {
+    const status = getStatus(item.qty, item.safetyStock);
+    const owner = isOwner(item);
+    return `
+      <tr>
+        <td style="font-weight:500;">${item.code}</td>
+        <td>${item.name}</td>
+        <td style="color:var(--muted);">${item.spec}</td>
+        <td style="font-weight:600;font-size:16px;">${item.qty}</td>
+        <td>${item.unit}</td>
+        <td><span class="group-tag ${getGroupClass(item.group)}">${item.group}</span></td>
+        <td><span class="status-badge ${status}">${getStatusLabel(status)}</span></td>
+        <td style="font-size:12px;color:var(--muted);">${item.updatedAt}</td>
+        <td>
+          <div class="action-btns">
+            ${owner ? `
+              <button class="btn btn-xs btn-success" onclick="quickInbound(${item.id})" title="入库">📥</button>
+              <button class="btn btn-xs btn-danger" onclick="quickOutbound(${item.id})" title="出库">📤</button>
+              <button class="btn btn-xs btn-secondary" onclick="editItem(${item.id})" title="编辑">✎</button>
+            ` : `
+              <button class="btn btn-xs btn-ghost" onclick="viewDetail(${item.id})">查看详情</button>
+            `}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterInventory() {
+  const search = document.getElementById('inv-search').value.toLowerCase();
+  const group = document.getElementById('inv-group').value;
+  const status = document.getElementById('inv-status').value;
+
+  const filtered = inventoryData.filter(item => {
+    if (search && !item.name.toLowerCase().includes(search) && !item.code.toLowerCase().includes(search) && !item.spec.toLowerCase().includes(search)) return false;
+    if (group && item.group !== group) return false;
+    if (status) {
+      const s = getStatus(item.qty, item.safetyStock);
+      if (status === 'out' && s !== 'out') return false;
+      if (status === 'warn' && s !== 'warn') return false;
+      if (status === 'normal' && s !== 'normal') return false;
+    }
+    return true;
+  });
+  renderInventory(filtered);
+}
+
+function viewDetail(id) {
+  const item = inventoryData.find(i => i.id === id);
+  if (!item) return;
+  const status = getStatus(item.qty, item.safetyStock);
+  document.getElementById('detail-title').textContent = item.name + ' · 详情';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-item"><label>备件编码</label><span>${item.code}</span></div>
+    <div class="detail-item"><label>名称</label><span>${item.name}</span></div>
+    <div class="detail-item"><label>规格型号</label><span>${item.spec}</span></div>
+    <div class="detail-item"><label>单位</label><span>${item.unit}</span></div>
+    <div class="detail-item"><label>当前库存</label><span>${item.qty} ${item.unit}</span></div>
+    <div class="detail-item"><label>库存状态</label><span class="status-badge ${status}">${getStatusLabel(status)}</span></div>
+    <div class="detail-item"><label>安全库存</label><span>${item.safetyStock} ${item.unit}</span></div>
+    <div class="detail-item"><label>存放位置</label><span>${item.location}</span></div>
+    <div class="detail-item"><label>所属组</label><span class="group-tag ${getGroupClass(item.group)}">${item.group}</span></div>
+    <div class="detail-item"><label>最后更新</label><span style="font-size:12px;">${item.updatedAt}</span></div>
+  `;
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+function editItem(id) {
+  const item = inventoryData.find(i => i.id === id);
+  if (!item) return;
+  showToast(`编辑功能 (${item.name}) — Demo 中暂不实现完整表单`, 'info');
+}
+
+function quickInbound(id) {
+  const item = inventoryData.find(i => i.id === id);
+  if (!item) return;
+  switchSection('inbound');
+  document.getElementById('inbound-part').value = 'existing';
+  document.getElementById('inbound-qty').value = 1;
+  showToast(`已跳转到入库登记 · ${item.name}`, 'info');
+}
+
+function quickOutbound(id) {
+  const item = inventoryData.find(i => i.id === id);
+  if (!item) return;
+  if (item.qty <= 0) {
+    showToast(`${item.name} 库存不足，无法出库`, 'error');
+    return;
+  }
+  switchSection('outbound');
+  document.getElementById('outbound-part').selectedIndex = 1;
+  document.getElementById('outbound-qty').value = 1;
+  document.getElementById('outbound-stock').textContent = `${item.qty} ${item.unit}`;
+  showToast(`已跳转到出库登记 · ${item.name}`, 'info');
+}
+
+// ==================== INBOUND ====================
+function openInbound() { switchSection('inbound'); }
+
+function submitInbound() {
+  const partSelect = document.getElementById('inbound-part');
+  const qty = parseInt(document.getElementById('inbound-qty').value) || 0;
+  const type = document.getElementById('inbound-type').value;
+
+  if (!partSelect.value) { showToast('请选择备件', 'error'); return; }
+  if (qty <= 0) { showToast('入库数量必须为正整数', 'error'); return; }
+
+  // Simulate: find or create item
+  const partName = partSelect.options[partSelect.selectedIndex].text.split(' (')[0];
+  let item = inventoryData.find(i => i.name === partName && i.group === CURRENT_USER.group);
+
+  if (item) {
+    const before = item.qty;
+    item.qty += qty;
+    item.updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+    logData.unshift({
+      time: item.updatedAt, operator: CURRENT_USER.name, group: CURRENT_USER.group,
+      part: item.name, delta: +qty, before: before, after: item.qty, type: '入库', note: type
+    });
+  } else if (partSelect.value === 'new') {
+    showToast('新建备件功能 — Demo 中暂不完整实现，请使用已有备件', 'info');
+    return;
+  }
+
+  showToast(`入库成功！${partName} +${qty}，当前库存 ${item ? item.qty : qty}`, 'success');
+  resetInboundForm();
+  renderInventory();
+  renderLog();
+}
+
+function resetInboundForm() {
+  document.getElementById('inbound-part').value = '';
+  document.getElementById('inbound-qty').value = 1;
+  document.getElementById('inbound-type').value = '采购入库';
+  document.getElementById('new-part-fields').style.display = 'none';
+}
+
+// ==================== OUTBOUND ====================
+function openOutbound() { switchSection('outbound'); }
+
+function submitOutbound() {
+  const partSelect = document.getElementById('outbound-part');
+  const qty = parseInt(document.getElementById('outbound-qty').value) || 0;
+
+  if (!partSelect.value) { showToast('请选择备件', 'error'); return; }
+  if (qty <= 0) { showToast('出库数量必须为正整数', 'error'); return; }
+
+  const partName = partSelect.options[partSelect.selectedIndex].text.split(' (')[0];
+  const item = inventoryData.find(i => i.name === partName && i.group === CURRENT_USER.group);
+
+  if (!item) { showToast('备件不存在或不属于本组', 'error'); return; }
+  if (qty > item.qty) { showToast(`出库数量(${qty})超过当前库存(${item.qty})`, 'error'); return; }
+
+  const before = item.qty;
+  item.qty -= qty;
+  item.updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+  logData.unshift({
+    time: item.updatedAt, operator: CURRENT_USER.name, group: CURRENT_USER.group,
+    part: item.name, delta: -qty, before: before, after: item.qty, type: '出库', note: ''
+  });
+
+  showToast(`出库成功！${partName} -${qty}，剩余库存 ${item.qty}`, 'success');
+  resetOutboundForm();
+  renderInventory();
+  renderLog();
+}
+
+function resetOutboundForm() {
+  document.getElementById('outbound-part').value = '';
+  document.getElementById('outbound-qty').value = 1;
+  document.getElementById('outbound-stock').textContent = '--';
+}
+
+// Update stock display when outbound part changes
+document.getElementById('outbound-part').addEventListener('change', function() {
+  const partName = this.options[this.selectedIndex].text.split(' (')[0];
+  const item = inventoryData.find(i => i.name === partName && i.group === CURRENT_USER.group);
+  document.getElementById('outbound-stock').textContent = item ? `${item.qty} ${item.unit}` : '--';
+});
+
+// Toggle new part fields for inbound
+document.getElementById('inbound-part').addEventListener('change', function() {
+  document.getElementById('new-part-fields').style.display = this.value === 'new' ? 'block' : 'none';
+});
+
+// ==================== LOG ====================
+function renderLog(filteredData) {
+  const data = filteredData || logData;
+  const tbody = document.getElementById('log-tbody');
+  document.getElementById('log-count').textContent = `共 ${data.length} 条记录`;
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📭</div><p>没有匹配的流水记录</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(log => `
+    <tr>
+      <td style="font-size:12px;white-space:nowrap;">${log.time}</td>
+      <td>${log.operator}</td>
+      <td><span class="group-tag ${getGroupClass(log.group)}">${log.group}</span></td>
+      <td>${log.part}</td>
+      <td style="font-weight:600;color:${log.delta > 0 ? 'var(--success)' : 'var(--danger)'};">${log.delta > 0 ? '+' : ''}${log.delta}</td>
+      <td>${log.before}</td>
+      <td>${log.after}</td>
+      <td><span class="status-badge ${log.type === '入库' ? 'normal' : 'out'}">${log.type}</span></td>
+      <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${log.note || '-'}">${log.note || '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function filterLog() {
+  const search = document.querySelector('#section-log .search-box input').value.toLowerCase();
+  const type = document.getElementById('log-type').value;
+  const group = document.getElementById('log-group').value;
+
+  const filtered = logData.filter(log => {
+    if (search && !log.part.toLowerCase().includes(search) && !log.operator.toLowerCase().includes(search)) return false;
+    if (type && log.type !== type) return false;
+    if (group && log.group !== group) return false;
+    return true;
+  });
+  renderLog(filtered);
+}
+
+// ==================== INIT ====================
+renderInventory();
+renderLog();
+document.getElementById('dash-time').textContent = new Date().toLocaleString('zh-CN', { hour12: false });
+</script>
+
+</body>
+</html>

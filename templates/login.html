@@ -1,0 +1,54 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}登录 - 库房备件管理系统{% endblock %}
+
+{% block content %}
+<style>
+body { margin: 0; }
+.sidebar { display: none; }
+.main { margin-left: 0; padding: 0; }
+</style>
+
+<div class="login-page">
+  <div class="login-card">
+    <h1>📦 库房备件管理</h1>
+    <p class="login-sub">请登录以继续</p>
+
+    {% if messages %}
+    <div class="messages" style="position:static;margin-bottom:16px;">
+      {% for msg in messages %}
+      <div class="message error">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" name="username" placeholder="请输入用户名" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" name="password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="btn btn-primary">登录</button>
+    </form>
+
+    <div class="login-divider">快速登录（Demo）</div>
+
+    <div class="quick-users">
+      {% for u in users %}
+      <form method="post" style="display:contents;">
+        {% csrf_token %}
+        <input type="hidden" name="username" value="{{ u.username }}">
+        <input type="hidden" name="password" value="demo123">
+        <button type="submit">
+          <div class="uname">{{ u.username }}</div>
+          <div class="ugroup">{{ u.profile.group.name|default:"无组" }}</div>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

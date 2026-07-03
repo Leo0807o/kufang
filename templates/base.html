@@ -1,0 +1,81 @@
+{% load static %}<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}库房备件管理系统{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'css/app.css' %}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="icon">📦</div>
+    库房管理
+  </div>
+  <div class="sidebar-group">
+    👤 当前所属组
+    <span class="badge">{% if is_admin %}管理员{% elif user_group %}{{ user_group.name }}{% else %}未分配{% endif %}</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="{% url 'dashboard' %}" {% if section == 'dashboard' %}class="active"{% endif %}>
+      📊 首页
+    </a>
+    <a href="{% url 'inventory_list' %}" {% if section == 'inventory' %}class="active"{% endif %}>
+      📋 库存列表
+    </a>
+    <a href="{% url 'inbound' %}" {% if section == 'inbound' %}class="active"{% endif %}>
+      📥 入库登记
+    </a>
+    <a href="{% url 'outbound' %}" {% if section == 'outbound' %}class="active"{% endif %}>
+      📤 出库登记
+    </a>
+    <a href="{% url 'log_list' %}" {% if section == 'log' %}class="active"{% endif %}>
+      📜 出入库流水
+    </a>
+    {% if is_admin %}
+    <a href="{% url 'user_list' %}" {% if section == 'users' %}class="active"{% endif %}>
+      👥 用户管理
+    </a>
+    {% endif %}
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">{{ user.username|slice:":1" }}</div>
+    <div>
+      <div style="font-weight:600;">{{ user.username }}</div>
+      <div style="font-size:12px;color:var(--muted-soft);">
+        {% if is_admin %}管理员{% elif user_group %}{{ user_group.name }} · 操作员{% else %}操作员{% endif %}
+        &nbsp;<a href="{% url 'logout' %}" style="color:var(--muted);">退出</a>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Toast Messages -->
+{% if messages %}
+<div class="messages">
+  {% for msg in messages %}
+  <div class="message {{ msg.tags }}">{{ msg }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+// Auto-dismiss messages after 3s
+document.addEventListener('DOMContentLoaded', function() {
+  var msgs = document.querySelectorAll('.message');
+  msgs.forEach(function(m) {
+    setTimeout(function() { m.style.display = 'none'; }, 3000);
+  });
+});
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

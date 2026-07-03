@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>首页</h1>
+    <div class="subtitle">{% if user_group %}{{ user_group.name }} · 概览{% else %}全局概览{% endif %}</div>
+  </div>
+  <div style="font-size:13px;color:var(--muted);">最后更新：{% now "Y-m-d H:i" %}</div>
+</div>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">本组库存总数</div>
+    <div class="stat-value">{{ total_qty }}</div>
+    <div class="stat-meta">涵盖 {{ total_types }} 种备件</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">本月入库次数</div>
+    <div class="stat-value" style="color:var(--success);">{{ month_in }}</div>
+    <div class="stat-meta">{{ user_group.name|default:"" }} 本月累计</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">本月出库次数</div>
+    <div class="stat-value">{{ month_out }}</div>
+    <div class="stat-meta">{{ user_group.name|default:"" }} 本月累计</div>
+  </div>
+  <div class="stat-card {% if low_stock_count > 0 %}warning{% endif %}">
+    <div class="stat-label">低库存预警</div>
+    <div class="stat-value">{{ low_stock_count }}</div>
+    <div class="stat-meta" style="{% if low_stock_count > 0 %}color:var(--warning);{% endif %}">
+      {% if low_stock_count > 0 %}需及时补货{% else %}库存充足{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Two Column -->
+<div class="two-col">
+  <!-- Low Stock Alerts -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>⚠️ 低库存预警 Top 5</h3>
+      <a href="{% url 'inventory_list' %}?status=warn" style="font-size:13px;color:var(--primary);font-weight:500;">查看全部 →</a>
+    </div>
+    <div class="panel-body">
+      {% if low_stock %}
+        {% for item in low_stock %}
+        <div class="alert-item">
+          <div class="dot {% if item.quantity <= 0 %}danger{% else %}warn{% endif %}"></div>
+          <div class="info">
+            <div class="name">{{ item.name }}</div>
+            <div class="detail">当前库存 {{ item.quantity }} · 安全库存 {{ item.safety_stock }} · {{ item.group.name }}</div>
+          </div>
+          <a href="{% url 'inbound' %}" class="btn btn-sm btn-primary">补货</a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="icon">✅</div>
+          <p>本组库存充足，无预警项</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>🕐 全局动态</h3>
+      <a href="{% url 'log_list' %}" style="font-size:13px;color:var(--primary);font-weight:500;">全部流水 →</a>
+    </div>
+    <div class="panel-body">
+      {% if recent_logs %}
+        {% for log in recent_logs %}
+        <div class="activity-item">
+          <span class="time">{{ log.created_at|time:"H:i" }}</span>
+          <span class="desc">
+            {{ log.operator.username }} · {{ log.group.name }}
+            {% if log.change_type == 'inbound' %}入库{% else %}出库{% endif %}
+            <span class="qty {% if log.change_type == 'inbound' %}in{% else %}out{% endif %}">
+              {{ log.delta|stringformat:"+d" }}
+            </span>
+            {{ log.inventory.name }}
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="icon">📭</div>
+          <p>暂无操作记录</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

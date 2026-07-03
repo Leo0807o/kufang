@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>📋 批量导入资产码</h1>
+    <div class="subtitle">{{ item.name }} · 共 {{ item.items.count }} 条单品行</div>
+  </div>
+  <a href="{% url 'inventory_detail' item.id %}" class="btn btn-secondary">← 返回详情</a>
+</div>
+
+<div class="panel" style="max-width:600px;">
+  <div class="panel-body">
+    <p style="font-size:14px;color:var(--ink);margin-bottom:16px;">
+      上传 CSV 文件，按行顺序匹配在库单品行，批量填入资产码和品种标识码。
+    </p>
+
+    <!-- Template download -->
+    <div style="background:var(--surface-soft);padding:16px;border-radius:var(--radius-sm);margin-bottom:20px;">
+      <p style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;">📥 下载导入模板</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">CSV 格式：全局唯一编码 | 唯一资产码 | 品种标识码。第一列已预填，你只需填后两列。</p>
+      <a href="{% url 'asset_item_template' item.id %}" class="btn btn-sm btn-secondary">下载模板 CSV</a>
+    </div>
+
+    <!-- Upload form -->
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>选择 CSV 文件</label>
+        <input type="file" name="file" accept=".csv" required>
+        <p class="form-hint">文件编码需为 UTF-8。第一行为标题行，从第二行开始按顺序匹配单品行。</p>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button type="submit" class="btn btn-primary">📤 开始导入</button>
+        <a href="{% url 'inventory_detail' item.id %}" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

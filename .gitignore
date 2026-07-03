@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+db.sqlite3
+*.pyo
+.env
+.DS_Store
+Thumbs.db
+/staticfiles/

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>出入库流水</h1>
+    <div class="subtitle">所有操作记录 · 审计日志</div>
+  </div>
+</div>
+
+<div class="panel">
+  <form class="toolbar" method="get" action="{% url 'log_list' %}">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" name="search" value="{{ search }}" placeholder="搜索备件名称、操作人...">
+    </div>
+    <select name="type" class="filter-select" onchange="this.form.submit()">
+      <option value="">全部类型</option>
+      <option value="inbound" {% if selected_type == 'inbound' %}selected{% endif %}>入库</option>
+      <option value="outbound" {% if selected_type == 'outbound' %}selected{% endif %}>出库</option>
+    </select>
+    <select name="group" class="filter-select" onchange="this.form.submit()">
+      <option value="">全部组别</option>
+      {% for g in groups %}
+      <option value="{{ g.id }}" {% if selected_group == g.id|stringformat:'s' %}selected{% endif %}>{{ g.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-secondary">搜索</button>
+  </form>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>操作时间</th>
+          <th>操作人</th>
+          <th>所属组</th>
+          <th>备件名称</th>
+          <th>变动数量</th>
+          <th>变动前库存</th>
+          <th>变动后库存</th>
+          <th>类型</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in page_obj %}
+        <tr>
+          <td style="font-size:12px;white-space:nowrap;">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ log.operator.username }}</td>
+          <td><span class="group-tag {% if log.group.name == '主机组' %}a{% elif log.group.name == '冷却组' %}b{% else %}c{% endif %}">{{ log.group.name }}</span></td>
+          <td><a href="{% url 'inventory_detail' log.inventory_id %}">{{ log.inventory.name }}</a></td>
+          <td style="font-weight:600;color:{% if log.change_type == 'inbound' %}var(--success){% else %}var(--danger){% endif %};">
+            {{ log.delta|stringformat:"+d" }}
+          </td>
+          <td>{{ log.before_qty }}</td>
+          <td>{{ log.after_qty }}</td>
+          <td><span class="status-badge {% if log.change_type == 'inbound' %}normal{% else %}out{% endif %}">
+            {% if log.change_type == 'inbound' %}入库{% else %}出库{% endif %}
+          </span></td>
+          <td style="font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ log.note|default:'-' }}">
+            {{ log.note|default:"-" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <div class="icon">📭</div>
+              <p>没有匹配的流水记录</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <span>共 {{ page_obj.paginator.count }} 条记录</span>
+    <div class="pagination-btns">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&search={{ search }}&type={{ selected_type }}&group={{ selected_group }}">‹</a>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+          {% if num == page_obj.number %}
+            <span class="active">{{ num }}</span>
+          {% else %}
+            <a href="?page={{ num }}&search={{ search }}&type={{ selected_type }}&group={{ selected_group }}">{{ num }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&search={{ search }}&type={{ selected_type }}&group={{ selected_group }}">›</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

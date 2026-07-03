@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>出库登记</h1>
+    <div class="subtitle">扣减本组库存 · {% if user_group %}{{ user_group.name }}{% endif %}</div>
+  </div>
+</div>
+
+{% if not available_parts %}
+<div class="panel" style="max-width:640px;">
+  <div class="panel-body">
+    <div class="empty-state">
+      <div class="icon">📭</div>
+      <p>本组暂无有库存的备件可供出库</p>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="panel" style="max-width:640px;">
+  <div class="panel-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>备件选择（仅显示本组有库存的备件）</label>
+          <select name="part_id" required onchange="updateStockDisplay()">
+            <option value="">-- 请选择备件 --</option>
+            {% for p in available_parts %}
+            <option value="{{ p.id }}"
+                    data-stock="{{ p.quantity }}"
+                    data-unit="{{ p.unit }}"
+                    {% if post_data.part_id == p.id|stringformat:'s' %}selected{% endif %}>
+              {{ p.name }} (库存: {{ p.quantity }}{{ p.unit }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>出库数量</label>
+          <input type="number" id="out-qty" name="quantity" value="{{ post_data.quantity|default:'1' }}" min="1" required oninput="validateQty()">
+          <div class="form-hint">当前库存：<span id="stock-display" style="color:var(--ink);font-weight:600;">--</span></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>领用人</label>
+          <input type="text" name="recipient" value="{{ post_data.recipient|default:'' }}" placeholder="请输入领用人姓名">
+        </div>
+        <div class="form-group">
+          <label>用途</label>
+          <select name="purpose">
+            {% for k,v in purposes.items %}
+            <option value="{{ k }}" {% if post_data.purpose == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea name="note" placeholder="出库原因、工单编号等（选填）">{{ post_data.note|default:'' }}</textarea>
+      </div>
+      <div class="form-hint">
+        ⚠️ 出库数量不可超过当前库存，后端将二次校验 group_id，操作后生成流水日志。
+      </div>
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button type="submit" class="btn btn-danger">📤 确认出库</button>
+        <a href="{% url 'inventory_list' %}" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function updateStockDisplay() {
+  var sel = document.querySelector('select[name="part_id"]');
+  var opt = sel.options[sel.selectedIndex];
+  var stock = opt.getAttribute('data-stock') || '--';
+  var unit = opt.getAttribute('data-unit') || '';
+  document.getElementById('stock-display').textContent = stock !== '--' ? stock + ' ' + unit : '--';
+  validateQty();
+}
+function validateQty() {
+  var sel = document.querySelector('select[name="part_id"]');
+  var opt = sel.options[sel.selectedIndex];
+  var stock = parseInt(opt.getAttribute('data-stock')) || 0;
+  var qty = parseInt(document.getElementById('out-qty').value) || 0;
+  var input = document.getElementById('out-qty');
+  if (qty > stock && stock > 0) {
+    input.style.borderColor = 'var(--danger)';
+  } else {
+    input.style.borderColor = '';
+  }
+}
+document.addEventListener('DOMContentLoaded', updateStockDisplay);
+</script>
+{% endblock %}

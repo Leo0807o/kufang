@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>库存列表</h1>
+    <div class="subtitle">管理所有备件库存信息</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="{% url 'inbound' %}" class="btn btn-primary">📥 入库登记</a>
+    <a href="{% url 'outbound' %}" class="btn btn-secondary">📤 出库登记</a>
+    <a href="{% url 'inventory_export' %}?search={{ search }}&group={{ selected_group }}&status={{ selected_status }}" class="btn btn-secondary">📥 导出CSV</a>
+  </div>
+</div>
+
+<div class="panel">
+  <form class="toolbar" method="get" action="{% url 'inventory_list' %}">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" name="search" value="{{ search }}" placeholder="搜索备件名称、编码、规格型号...">
+    </div>
+    <select name="group" class="filter-select" onchange="this.form.submit()">
+      <option value="">全部组别</option>
+      {% for g in groups %}
+      <option value="{{ g.id }}" {% if selected_group == g.id|stringformat:'s' %}selected{% endif %}>{{ g.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" class="filter-select" onchange="this.form.submit()">
+      <option value="">全部状态</option>
+      <option value="normal" {% if selected_status == 'normal' %}selected{% endif %}>正常</option>
+      <option value="warn" {% if selected_status == 'warn' %}selected{% endif %}>预警</option>
+      <option value="out" {% if selected_status == 'out' %}selected{% endif %}>缺货</option>
+    </select>
+    <button type="submit" class="btn btn-sm btn-secondary">搜索</button>
+  </form>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>备件编码</th>
+          <th>名称</th>
+          <th>规格型号</th>
+          <th>当前数量</th>
+          <th>单位</th>
+          <th>所属组</th>
+          <th>状态</th>
+          <th>最后更新</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in page_obj %}
+        <tr>
+          <td style="font-weight:500;">{{ item.code }}</td>
+          <td>{{ item.name }}</td>
+          <td style="color:var(--muted);">{{ item.spec|default:"-" }}</td>
+          <td style="font-weight:600;font-size:16px;">{{ item.quantity }}</td>
+          <td>{{ item.unit }}</td>
+          <td>
+            <span class="group-tag {% if item.group.name == '主机组' %}a{% elif item.group.name == '冷却组' %}b{% else %}c{% endif %}">
+              {{ item.group.name }}
+            </span>
+          </td>
+          <td><span class="status-badge {{ item.stock_status }}">
+            {% if item.stock_status == 'normal' %}正常{% elif item.stock_status == 'warn' %}预警{% else %}缺货{% endif %}
+          </span></td>
+          <td style="font-size:12px;color:var(--muted);">{{ item.updated_at|date:"Y-m-d H:i" }}</td>
+          <td>
+            <div class="action-btns">
+              {% if item.group == user_group %}
+                <a href="{% url 'inventory_detail' item.id %}" class="btn btn-xs btn-ghost">查看详情</a>
+                <a href="{% url 'outbound' %}?part={{ item.id }}" class="btn btn-xs btn-danger" title="出库">📤</a>
+                <a href="{% url 'inventory_edit' item.id %}" class="btn btn-xs btn-secondary" title="编辑">✎</a>
+              {% else %}
+                <a href="{% url 'inventory_detail' item.id %}" class="btn btn-xs btn-ghost">查看详情</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <div class="icon">📭</div>
+              <p>没有匹配的库存记录</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <span>共 {{ page_obj.paginator.count }} 条记录</span>
+    <div class="pagination-btns">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&search={{ search }}&group={{ selected_group }}&status={{ selected_status }}">‹</a>
+      {% else %}
+        <span style="opacity:0.3;">‹</span>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+          {% if num == page_obj.number %}
+            <span class="active">{{ num }}</span>
+          {% else %}
+            <a href="?page={{ num }}&search={{ search }}&group={{ selected_group }}&status={{ selected_status }}">{{ num }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&search={{ search }}&group={{ selected_group }}&status={{ selected_status }}">›</a>
+      {% else %}
+        <span style="opacity:0.3;">›</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

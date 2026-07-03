@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ item.name }}</h1>
+    <div class="subtitle">备件详情 · <span class="group-tag {{ group_class }}">{{ item.group.name }}</span></div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    {% if is_owner %}
+    <a href="{% url 'inventory_edit' item.id %}" class="btn btn-secondary">✎ 编辑</a>
+    <a href="{% url 'inbound' %}?part={{ item.id }}" class="btn btn-primary">📥 入库</a>
+    <a href="{% url 'outbound' %}?part={{ item.id }}" class="btn btn-danger">📤 出库</a>
+    {% endif %}
+    <a href="{% url 'inventory_list' %}" class="btn btn-ghost">← 返回列表</a>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><h3>基本信息</h3></div>
+  <div class="panel-body">
+    <div class="detail-grid">
+      <div class="detail-item"><label>备件编码</label><span>{{ item.code }}</span></div>
+      <div class="detail-item"><label>名称</label><span>{{ item.name }}</span></div>
+      <div class="detail-item"><label>规格型号</label><span>{{ item.spec|default:"-" }}</span></div>
+      <div class="detail-item"><label>单位</label><span>{{ item.unit }}</span></div>
+      <div class="detail-item"><label>当前库存</label><span style="font-size:20px;font-weight:700;">{{ item.quantity }} {{ item.unit }}</span></div>
+      <div class="detail-item"><label>库存状态</label>
+        <span class="status-badge {{ item.stock_status }}">{% if item.stock_status == 'normal' %}正常{% elif item.stock_status == 'warn' %}预警{% else %}缺货{% endif %}</span>
+      </div>
+      <div class="detail-item"><label>安全库存</label><span>{{ item.safety_stock }} {{ item.unit }}</span></div>
+      <div class="detail-item"><label>存放位置</label><span>{{ item.location|default:"-" }}</span></div>
+      <div class="detail-item"><label>所属组</label><span class="group-tag {{ group_class }}">{{ item.group.name }}</span></div>
+      <div class="detail-item"><label>最后更新</label><span>{{ item.updated_at|date:"Y-m-d H:i" }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><h3>扩展信息</h3></div>
+  <div class="panel-body">
+    <div class="detail-grid">
+      <div class="detail-item"><label>使用状态</label><span>{{ item.get_status_display }}</span></div>
+      <div class="detail-item"><label>质量等级</label><span>{{ item.get_quality_display }}</span></div>
+      <div class="detail-item"><label>生产厂家</label><span>{{ item.manufacturer|default:"-" }}</span></div>
+      <div class="detail-item"><label>重要程度</label><span>{{ item.get_importance_display }}</span></div>
+      <div class="detail-item"><label>涉密等级</label><span>{{ item.get_security_level_display }}</span></div>
+      <div class="detail-item"><label>品种标识码</label><span>{{ item.variety_code|default:"-" }}</span></div>
+      <div class="detail-item"><label>唯一资产码</label><span>{{ item.asset_code|default:"-" }}</span></div>
+      <div class="detail-item" style="grid-column:1/-1;"><label>配置</label><span>{{ item.configuration|default:"-" }}</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Asset Items Panel -->
+<div class="panel">
+  <div class="panel-header">
+    <h3>单品明细</h3>
+    {% if is_owner and item.quantity > 0 and not item.is_split %}
+    <a href="{% url 'inventory_split' item.id %}" class="btn btn-sm btn-primary">✂ 拆分单品</a>
+    {% endif %}
+    {% if is_owner and asset_items %}
+    <a href="{% url 'asset_item_import' item.id %}" class="btn btn-sm btn-secondary">📋 批量导入</a>
+    {% endif %}
+  </div>
+  <div class="panel-body no-padding">
+    {% if asset_items %}
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>序号</th>
+            <th>唯一资产码</th>
+            <th>品种标识码</th>
+            <th>状态</th>
+            {% if is_owner %}<th>操作</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for ai in asset_items %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ ai.asset_code|default:"-" }}</td>
+            <td>{{ ai.variety_code|default:"-" }}</td>
+            <td>
+              <span class="status-badge {% if ai.status == 'in_stock' %}normal{% else %}out{% endif %}">
+                {{ ai.get_status_display }}
+              </span>
+            </td>
+            {% if is_owner %}
+            <td>
+              <a href="{% url 'asset_item_edit' ai.id %}" class="btn btn-xs btn-secondary">填写</a>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">📦</div>
+      <p>尚未拆分单品</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:4px;">拆分后每件库存独立追踪，可逐一填写资产码和品种码</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

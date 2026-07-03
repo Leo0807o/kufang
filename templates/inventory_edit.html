@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>编辑备件</h1>
+    <div class="subtitle">{{ item.name }} · {{ item.code }}</div>
+  </div>
+  <a href="{% url 'inventory_list' %}" class="btn btn-ghost">← 返回列表</a>
+</div>
+
+<div class="panel" style="max-width:720px;">
+  <div class="panel-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>备件编码</label>
+          <input type="text" value="{{ item.code }}" readonly style="background:var(--surface-soft);color:var(--muted);">
+        </div>
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" name="name" value="{{ item.name }}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>规格型号</label>
+          <input type="text" name="spec" value="{{ item.spec }}">
+        </div>
+        <div class="form-group">
+          <label>单位</label>
+          <select name="unit">
+            {% for k,v in item.UNIT_CHOICES %}
+            <option value="{{ k }}" {% if item.unit == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>安全库存</label>
+          <input type="number" name="safety_stock" value="{{ item.safety_stock }}" min="0">
+        </div>
+        <div class="form-group">
+          <label>存放位置</label>
+          <input type="text" name="location" value="{{ item.location }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>使用状态</label>
+          <select name="status">
+            {% for k,v in item.STATUS_CHOICES %}
+            <option value="{{ k }}" {% if item.status == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>质量等级</label>
+          <select name="quality">
+            {% for k,v in item.QUALITY_CHOICES %}
+            <option value="{{ k }}" {% if item.quality == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>生产厂家</label>
+        <input type="text" name="manufacturer" value="{{ item.manufacturer }}">
+      </div>
+      <div class="form-group">
+        <label>配置</label>
+        <textarea name="configuration">{{ item.configuration }}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>重要程度</label>
+          <select name="importance">
+            {% for k,v in item.IMPORTANCE_CHOICES %}
+            <option value="{{ k }}" {% if item.importance == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>涉密等级</label>
+          <select name="security_level">
+            {% for k,v in item.SECURITY_CHOICES %}
+            <option value="{{ k }}" {% if item.security_level == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% if item.quantity == 1 %}
+      <div class="form-group">
+        <label>品种标识码</label>
+        <input type="text" name="variety_code" value="{{ item.variety_code }}">
+      </div>
+      <div class="form-group">
+        <label>唯一资产码</label>
+        <input type="text" name="asset_code" value="{{ item.asset_code }}">
+      </div>
+      {% endif %}
+      <div style="margin-top:24px;display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">💾 保存修改</button>
+        <a href="{% url 'inventory_list' %}" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

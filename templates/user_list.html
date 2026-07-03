@@ -1,0 +1,124 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}用户管理 - 库房备件管理系统{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>👥 用户管理</h1>
+    <p class="subtitle">管理系统用户及其业务组分配</p>
+  </div>
+</div>
+
+<!-- New User Form -->
+<div class="panel" style="margin-bottom:24px;">
+  <div class="panel-header">
+    <h3>新建用户</h3>
+  </div>
+  <div class="panel-body">
+    <form method="post" action="{% url 'user_create' %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>用户名 *</label>
+          <input type="text" name="username" placeholder="登录用户名" required>
+        </div>
+        <div class="form-group">
+          <label>初始密码 *</label>
+          <input type="text" name="password" placeholder="为用户设置初始密码" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>姓名</label>
+          <input type="text" name="first_name" placeholder="用户真实姓名">
+        </div>
+        <div class="form-group">
+          <label>所属业务组</label>
+          <select name="group">
+            <option value="">-- 请选择 --</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>电话</label>
+          <input type="text" name="phone" placeholder="联系电话">
+        </div>
+        <div class="form-group">
+          <label>工号</label>
+          <input type="text" name="employee_id" placeholder="工号">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">创建用户</button>
+    </form>
+  </div>
+</div>
+
+<!-- User List -->
+<div class="panel">
+  <div class="panel-header">
+    <h3>用户列表（{{ users|length }} 人）</h3>
+  </div>
+  <div class="panel-body no-padding">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>所属组</th>
+            <th>电话</th>
+            <th>工号</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td style="font-weight:600;">{{ u.username }}</td>
+            <td>{{ u.first_name|default:"-" }}</td>
+            <td>
+              {% with ug=u.profile.group %}
+              {% if ug %}
+              <span class="group-tag a">{{ ug.name }}</span>
+              {% else %}
+              <span style="color:var(--muted-soft);">未分配</span>
+              {% endif %}
+              {% endwith %}
+            </td>
+            <td>{{ u.profile.phone|default:"-" }}</td>
+            <td>{{ u.profile.employee_id|default:"-" }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-secondary">编辑</a>
+                <a href="{% url 'user_reset_password' u.id %}" class="btn btn-sm btn-ghost">重置密码</a>
+                {% if u.username != user.username %}
+                <form method="post" action="{% url 'user_toggle_active' u.id %}" style="display:contents;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要禁用用户「{{ u.username }}」吗？')">
+                    禁用
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                <div class="icon">👤</div>
+                <p>暂无用户</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
