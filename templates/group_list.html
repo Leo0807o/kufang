@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}组管理 - 库房备件管理系统{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>📂 组管理</h1>
+    <p class="subtitle">管理业务组及其编码前缀</p>
+  </div>
+</div>
+
+<!-- New Group Form -->
+<div class="panel" style="margin-bottom:24px;">
+  <div class="panel-header">
+    <h3>新建业务组</h3>
+  </div>
+  <div class="panel-body">
+    <form method="post" action="{% url 'group_create' %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>组名称 *</label>
+          <input type="text" name="name" placeholder="如：网络组" required>
+        </div>
+        <div class="form-group">
+          <label>编码前缀 *</label>
+          <input type="text" name="prefix" placeholder="如：NET" required
+                 pattern="[A-Z]{2,6}" title="2-6位大写英文字母"
+                 maxlength="6" style="text-transform:uppercase;">
+          <div class="form-hint">2-6位大写英文字母，创建后不可修改。备件编码格式：<strong>前缀-序号</strong>（如 NET-001）</div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">创建业务组</button>
+    </form>
+  </div>
+</div>
+
+<!-- Group List -->
+<div class="panel">
+  <div class="panel-header">
+    <h3>业务组列表（{{ group_data|length }} 个）</h3>
+  </div>
+  <div class="panel-body no-padding">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>组名称</th>
+            <th>编码前缀</th>
+            <th>用户数</th>
+            <th>库存种类</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gd in group_data %}
+          <tr>
+            <td style="font-weight:600;">
+              {{ gd.group.name }}
+              {% if gd.is_admin_group %}
+              <span class="group-tag admin-tag">系统</span>
+              {% endif %}
+            </td>
+            <td><code style="background:var(--surface-soft);padding:2px 8px;border-radius:4px;">{{ gd.prefix }}</code></td>
+            <td>{{ gd.user_count }}</td>
+            <td>{{ gd.inventory_count }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="{% url 'group_detail' gd.group.id %}" class="btn btn-sm btn-ghost">查看</a>
+                {% if not gd.is_admin_group %}
+                <a href="{% url 'group_edit' gd.group.id %}" class="btn btn-sm btn-secondary">编辑</a>
+                <a href="{% url 'group_delete' gd.group.id %}" class="btn btn-sm btn-danger">删除</a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">
+                <div class="icon">📂</div>
+                <p>暂无业务组</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

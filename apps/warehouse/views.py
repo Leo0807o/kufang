@@ -18,9 +18,14 @@ PAGE_SIZE = 20
 
 
 def _get_group_display(group):
-    """Helper to map group name to display tag class."""
-    mapping = {'主机组': 'a', '冷却组': 'b', '电力组': 'c'}
-    return mapping.get(group.name if hasattr(group, 'name') else str(group), 'a')
+    """Helper to map group name to a deterministic CSS tag class (a-g)."""
+    name = group.name if hasattr(group, 'name') else str(group)
+    # Use group id modulo 7 for deterministic color assignment
+    if hasattr(group, 'id'):
+        idx = group.id % 7
+    else:
+        idx = hash(name) % 7
+    return chr(ord('a') + idx)
 
 
 def _group_choices():
@@ -473,8 +478,8 @@ def inbound(request):
                     })
 
                 # Auto-generate code: group-prefix + number
-                prefix_map = {'主机组': 'HOST', '冷却组': 'COOL', '电力组': 'ELEC'}
-                prefix = prefix_map.get(user_group.name, 'PART')
+                from apps.accounts.models import GroupProfile
+                prefix = GroupProfile.get_prefix(user_group)
                 last = Inventory.objects.filter(
                     code__startswith=prefix,
                     group=user_group,

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}删除 {{ group.name }} - 组管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 style="color:var(--danger);">🗑️ 删除业务组</h1>
+    <p class="subtitle">{{ group.name }}（{{ group.profile.prefix }}）</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div>
+    <!-- Data Summary -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>该组关联数据</h3>
+      </div>
+      <div class="panel-body">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <label>用户</label>
+            <span>{{ user_count }} 人</span>
+          </div>
+          <div class="detail-item">
+            <label>库存种类</label>
+            <span>{{ inv_count }} 种</span>
+          </div>
+          <div class="detail-item">
+            <label>入库记录</label>
+            <span>{{ in_count }} 条</span>
+          </div>
+          <div class="detail-item">
+            <label>出库记录</label>
+            <span>{{ out_count }} 条</span>
+          </div>
+          <div class="detail-item">
+            <label>流水日志</label>
+            <span>{{ log_count }} 条</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Warning -->
+    <div class="panel" style="border-color:var(--danger);">
+      <div class="panel-header" style="background:#fff5f5;">
+        <h3 style="color:var(--danger);">⚠️ 删除确认</h3>
+      </div>
+      <div class="panel-body">
+        <p style="color:var(--body);line-height:1.6;">
+          删除此业务组后：<br>
+          • 该组所有用户将变为 <strong>未分组</strong><br>
+          • 该组所有库存、出入库记录、流水日志将被 <strong>永久删除</strong><br>
+          • 此操作 <strong style="color:var(--danger);">不可撤销</strong>
+        </p>
+
+        <form method="post" style="margin-top:20px;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="download">
+          <button type="submit" class="btn btn-primary">
+            📥 下载备份（ZIP）
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Delete Form -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>执行删除</h3>
+      </div>
+      <div class="panel-body">
+        <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">
+          请先下载备份数据，确认无误后再执行删除。
+        </p>
+        <form method="post" onsubmit="return confirm('最后确认：确定要永久删除「{{ group.name }}」及其所有数据吗？此操作不可撤销！');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" name="confirmed" value="yes" required style="width:auto;height:auto;">
+              我已下载备份数据，确认删除此业务组
+            </label>
+          </div>
+          <button type="submit" class="btn btn-danger" style="width:100%;">
+            🗑️ 确认删除「{{ group.name }}」
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <a href="{% url 'group_list' %}" class="btn btn-secondary" style="width:100%;margin-top:12px;">
+      ← 取消，返回列表
+    </a>
+  </div>
+</div>
+{% endblock %}

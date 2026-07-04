@@ -2,7 +2,7 @@
 import sys
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
-from apps.accounts.models import UserProfile
+from apps.accounts.models import UserProfile, GroupProfile
 from apps.warehouse.models import Inventory, InboundRecord, OutboundRecord, AuditLog
 from datetime import datetime, timedelta
 
@@ -18,11 +18,25 @@ class Command(BaseCommand):
         self.stdout.write('[Seed] Creating demo data...')
 
         # ===== Create Groups =====
+        group_prefixes = {
+            '主机组': 'HOST',
+            '冷却组': 'COOL',
+            '电力组': 'ELEC',
+            '管理员': '',  # Admin group has no prefix
+        }
         groups = {}
         for name in ['主机组', '冷却组', '电力组', '管理员']:
             group, created = Group.objects.get_or_create(name=name)
             groups[name] = group
             action = 'created' if created else 'exists'
+            prefix = group_prefixes.get(name, '')
+            if prefix:
+                gp, gp_created = GroupProfile.objects.get_or_create(
+                    group=group, defaults={'prefix': prefix},
+                )
+                if not gp_created and gp.prefix != prefix:
+                    gp.prefix = prefix
+                    gp.save()
             self.stdout.write(f'  [{"OK" if created else "SKIP"}] Group: {name} ({action})')
 
         # ===== Create Users =====

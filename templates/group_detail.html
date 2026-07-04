@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}{{ group.name }} - 组管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ group.name }}</h1>
+    <p class="subtitle">业务组详情</p>
+  </div>
+  <a href="{% url 'group_list' %}" class="btn btn-secondary">← 返回列表</a>
+</div>
+
+<!-- Info Card -->
+<div class="two-col">
+
+  <!-- Left: Group Info -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <h3>基本信息</h3>
+      </div>
+      <div class="panel-body">
+        <div class="detail-grid" style="max-width:480px;">
+          <div class="detail-item">
+            <label>组名称</label>
+            <span>{{ group.name }}</span>
+          </div>
+          <div class="detail-item">
+            <label>编码前缀</label>
+            <span><code>{{ prefix }}</code></span>
+          </div>
+          <div class="detail-item">
+            <label>业务组 ID</label>
+            <span>{{ group.id }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>组成员（{{ users|length }} 人）</h3>
+      </div>
+      <div class="panel-body no-padding">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>姓名</th>
+                <th>电话</th>
+                <th>工号</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td style="font-weight:600;">{{ u.username }}</td>
+                <td>{{ u.first_name|default:"-" }}</td>
+                <td>{{ u.profile.phone|default:"-" }}</td>
+                <td>{{ u.profile.employee_id|default:"-" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4">
+                  <div class="empty-state">
+                    <div class="icon">👤</div>
+                    <p>该组暂无用户</p>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Stats + Activity -->
+  <div>
+    <!-- Mini Stats -->
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="stat-card">
+        <div class="stat-label">库存种类</div>
+        <div class="stat-value" style="font-size:24px;">{{ inv_count }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">库存总量</div>
+        <div class="stat-value" style="font-size:24px;">{{ total_qty }}</div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>🕐 最近动态</h3>
+      </div>
+      <div class="panel-body">
+        {% if recent_logs %}
+          {% for log in recent_logs %}
+          <div class="activity-item">
+            <span class="time">{{ log.created_at|date:"m-d H:i" }}</span>
+            <span class="desc">
+              {{ log.operator.username }}
+              {% if log.change_type == 'inbound' %}入库{% else %}出库{% endif %}
+              <span class="qty {% if log.change_type == 'inbound' %}in{% else %}out{% endif %}">
+                {{ log.delta|stringformat:"+d" }}
+              </span>
+              {{ log.inventory.name }}
+            </span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>暂无操作记录</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:8px;">
+      {% if not is_admin_group %}
+      <a href="{% url 'group_edit' group.id %}" class="btn btn-secondary">✏️ 编辑组</a>
+      <a href="{% url 'group_delete' group.id %}" class="btn btn-danger">🗑️ 删除组</a>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

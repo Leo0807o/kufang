@@ -39,6 +39,9 @@
     <a href="{% url 'user_list' %}" {% if section == 'users' %}class="active"{% endif %}>
       👥 用户管理
     </a>
+    <a href="{% url 'group_list' %}" {% if section == 'groups' %}class="active"{% endif %}>
+      📂 组管理
+    </a>
     {% endif %}
   </nav>
   <div class="sidebar-footer">

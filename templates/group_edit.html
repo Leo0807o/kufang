@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}编辑 {{ group.name }} - 组管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>编辑业务组</h1>
+    <p class="subtitle">{{ group.name }}</p>
+  </div>
+  <a href="{% url 'group_list' %}" class="btn btn-secondary">← 返回列表</a>
+</div>
+
+<div class="panel" style="max-width:640px;">
+  <div class="panel-header">
+    <h3>编辑信息</h3>
+  </div>
+  <div class="panel-body">
+    <form method="post" action="{% url 'group_edit' group.id %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>组名称 *</label>
+        <input type="text" name="name" value="{{ group.name }}" required>
+      </div>
+      <div class="form-group">
+        <label>编码前缀</label>
+        <input type="text" value="{{ prefix }}" disabled
+               style="background:var(--surface-soft);color:var(--muted-soft);">
+        <div class="form-hint">⚠️ 编码前缀创建后不可修改</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary">保存更改</button>
+        <a href="{% url 'group_list' %}" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
