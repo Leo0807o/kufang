@@ -6,10 +6,18 @@
     <h1>库存列表</h1>
     <div class="subtitle">管理所有备件库存信息</div>
   </div>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;align-items:center;">
     <a href="{% url 'inbound' %}" class="btn btn-primary">📥 入库登记</a>
     <a href="{% url 'outbound' %}" class="btn btn-secondary">📤 出库登记</a>
     <a href="{% url 'inventory_export' %}?search={{ search }}&group={{ selected_group }}&status={{ selected_status }}" class="btn btn-secondary">📥 导出CSV</a>
+    <a href="{% url 'inventory_import_template' %}" class="btn btn-secondary">📋 下载导入模板</a>
+    <form method="post" action="{% url 'inventory_import' %}" enctype="multipart/form-data" style="display:flex;gap:4px;align-items:center;margin:0;">
+      {% csrf_token %}
+      <label class="btn btn-secondary" style="cursor:pointer;margin:0;" title="上传CSV导入库存">
+        📤 导入CSV
+        <input type="file" name="file" accept=".csv" onchange="this.form.submit()" style="display:none;">
+      </label>
+    </form>
   </div>
 </div>
 

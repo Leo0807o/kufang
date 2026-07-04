@@ -132,6 +132,7 @@ class OutboundRecord(models.Model):
     ]
 
     inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='outbounds', verbose_name='备件')
+    asset_items = models.ManyToManyField(AssetItem, blank=True, related_name='outbound_records', verbose_name='出库单品')
     quantity = models.PositiveIntegerField(verbose_name='出库数量')
     recipient = models.CharField(max_length=100, verbose_name='领用人')
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='repair', verbose_name='用途')

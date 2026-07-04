@@ -12,6 +12,7 @@ from django.core.paginator import Paginator, EmptyPage
 
 from .models import Inventory, AssetItem, InboundRecord, OutboundRecord, AuditLog
 from .decorators import require_group_owner
+from .export_utils import format_export_datetime
 
 
 PAGE_SIZE = 20
@@ -43,6 +44,48 @@ def _paginate(request, queryset, page_size=PAGE_SIZE):
     except EmptyPage:
         page_obj = p.page(1)
     return page_obj
+
+
+def _is_admin_user(request):
+    return request.user.is_superuser or getattr(request, 'is_admin', False)
+
+
+def _default_group_id(request):
+    if 'group' in request.GET:
+        return request.GET.get('group', '')
+    if not _is_admin_user(request) and request.user_group:
+        return str(request.user_group.id)
+    return ''
+
+
+def _apply_group_filter(request, queryset):
+    if not _is_admin_user(request) and not request.user_group:
+        return queryset.none(), ''
+    group_id = _default_group_id(request)
+    if group_id:
+        queryset = queryset.filter(group_id=group_id)
+    return queryset, group_id
+
+
+def _generate_inventory_code(group):
+    """Generate a unique inventory code for a group: PREFIX-NNN."""
+    from apps.accounts.models import GroupProfile
+    prefix = GroupProfile.get_prefix(group)
+    last = Inventory.objects.filter(
+        code__startswith=prefix, group=group,
+    ).order_by('-code').first()
+    if last:
+        try:
+            num = int(last.code.split('-')[1]) + 1
+        except (IndexError, ValueError):
+            num = 1
+    else:
+        num = 1
+    code = f'{prefix}-{num:03d}'
+    while Inventory.objects.filter(code=code).exists():
+        num += 1
+        code = f'{prefix}-{num:03d}'
+    return code
 
 
 # ==================== DASHBOARD ====================
@@ -111,9 +154,7 @@ def inventory_list(request):
         )
 
     # Filter by group
-    group_id = request.GET.get('group', '')
-    if group_id:
-        queryset = queryset.filter(group_id=group_id)
+    queryset, group_id = _apply_group_filter(request, queryset)
 
     # Filter by status
     status = request.GET.get('status', '')
@@ -358,9 +399,7 @@ def inventory_export(request):
             Q(code__icontains=search) |
             Q(spec__icontains=search)
         )
-    group_id = request.GET.get('group', '')
-    if group_id:
-        queryset = queryset.filter(group_id=group_id)
+    queryset, group_id = _apply_group_filter(request, queryset)
 
     # Create CSV response with BOM for Excel Chinese support
     output = io.StringIO()
@@ -386,7 +425,7 @@ def inventory_export(request):
                     ai.variety_code or item.variety_code,
                     ai.asset_code or item.asset_code,
                     ai.get_status_display(),
-                    item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '',
+                    format_export_datetime(item.updated_at),
                 ])
         elif item.quantity > 0:
             # Not split — single row
@@ -397,7 +436,7 @@ def inventory_export(request):
                 item.manufacturer, item.get_importance_display(),
                 item.get_security_level_display(), item.variety_code, item.asset_code,
                 '在库',
-                item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '',
+                format_export_datetime(item.updated_at),
             ])
         else:
             # Zero quantity — still export one row
@@ -408,12 +447,247 @@ def inventory_export(request):
                 item.manufacturer, item.get_importance_display(),
                 item.get_security_level_display(), item.variety_code, item.asset_code,
                 '缺货',
-                item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '',
+                format_export_datetime(item.updated_at),
             ])
 
     response = HttpResponse(output.getvalue(), content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="inventory_export.csv"'
     return response
+
+
+# ==================== INVENTORY IMPORT ====================
+
+IMPORT_FIELDS = [
+    ('备件编码（留空自动生成）', 'code'),
+    ('名称', 'name'),
+    ('规格型号', 'spec'),
+    ('数量', 'quantity'),
+    ('单位', 'unit'),
+    ('安全库存', 'safety_stock'),
+    ('存放位置', 'location'),
+    ('使用状态', 'status'),
+    ('质量等级', 'quality'),
+    ('生产厂家', 'manufacturer'),
+    ('配置', 'configuration'),
+    ('重要程度', 'importance'),
+    ('涉密等级', 'security_level'),
+    ('品种标识码', 'variety_code'),
+    ('唯一资产码', 'asset_code'),
+]
+
+STATUS_REVERSE = {v: k for k, v in Inventory.STATUS_CHOICES}
+QUALITY_REVERSE = {v: k for k, v in Inventory.QUALITY_CHOICES}
+IMPORTANCE_REVERSE = {v: k for k, v in Inventory.IMPORTANCE_CHOICES}
+SECURITY_REVERSE = {v: k for k, v in Inventory.SECURITY_CHOICES}
+UNIT_REVERSE = {v: k for k, v in Inventory.UNIT_CHOICES}
+
+
+@login_required
+def inventory_import_template(request):
+    """Download a blank CSV template for inventory import."""
+    output = io.StringIO()
+    output.write('﻿')  # UTF-8 BOM
+    writer = csv.writer(output)
+
+    # Row 1: Field names
+    writer.writerow([f[0] for f in IMPORT_FIELDS])
+
+    # Row 2: Example — non-split item
+    writer.writerow([
+        '', '示例备件A', '型号-X1', '10', '个', '5', 'A区-3架',
+        '闲置', '全新', 'XX厂商', '', '一般', '内部',
+        'VAR-001', 'ASSET-001',
+    ])
+
+    # Row 3: Example — split item (each row = one AssetItem)
+    writer.writerow([
+        '', '示例备件B', '型号-Y1', '', '个', '3', 'B区-1架',
+        '使用中', '良好', 'YY厂商', '', '核心', '涉密',
+        'VAR-002', 'ASSET-002',
+    ])
+    writer.writerow([
+        '', '示例备件B', '型号-Y1', '', '个', '', '', '', '', '', '', '', '',
+        'VAR-003', 'ASSET-003',
+    ])
+
+    # Row 5: Instructions
+    writer.writerow([])
+    writer.writerow(['说明：'])
+    writer.writerow(['1. 备件编码留空则自动生成（格式：组前缀-编号）'])
+    writer.writerow(['2. 同一名称+规格型号的多行 = 拆分模式，每行生成一个带独立资产码的单品'])
+    writer.writerow(['3. 名称+规格型号唯一的单行 = 整件模式，数量列填总数'])
+    writer.writerow(['4. 使用状态: 使用中/闲置/已报废 | 质量等级: 全新/良好/旧件/待修'])
+    writer.writerow(['5. 重要程度: 核心/重要/一般 | 涉密等级: 涉密/内部/非密'])
+
+    response = HttpResponse(output.getvalue(), content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="inventory_import_template.csv"'
+    return response
+
+
+@login_required
+def inventory_import(request):
+    """Bulk import inventory from CSV. Supports both split and non-split modes."""
+    user_group = request.user_group
+    if not user_group:
+        messages.error(request, '您尚未分配业务组，无法导入')
+        return redirect('inventory_list')
+
+    if request.method == 'POST':
+        csv_file = request.FILES.get('file')
+        if not csv_file:
+            messages.error(request, '请选择CSV文件')
+            return redirect('inventory_list')
+
+        # Parse CSV
+        try:
+            raw = csv_file.read()
+            content = None
+            for enc in ['utf-8-sig', 'gbk', 'utf-8']:
+                try:
+                    content = raw.decode(enc)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if content is None:
+                raise ValueError('无法识别文件编码，请使用 UTF-8 或 GBK 编码')
+            reader = csv.reader(io.StringIO(content))
+            rows = list(reader)
+        except Exception as e:
+            messages.error(request, f'CSV文件解析失败: {e}')
+            return redirect('inventory_list')
+
+        if len(rows) < 2:
+            messages.error(request, 'CSV文件为空或无数据行')
+            return redirect('inventory_list')
+
+        # Map field keys to column indices from header
+        header = [h.strip().replace('（留空自动生成）', '') for h in rows[0]]
+        col_map = {}
+        for i, h in enumerate(header):
+            for label, key in IMPORT_FIELDS:
+                if label.startswith(h) or h.startswith(label[:4]):
+                    col_map[key] = i
+                    break
+
+        required_cols = {'name'}
+        if not required_cols.issubset(col_map.keys()):
+            messages.error(request, 'CSV缺少必填列：名称')
+            return redirect('inventory_list')
+
+        # Parse data rows (skip empty rows and instruction rows)
+        data_rows = []
+        for row in rows[1:]:
+            if not row or not any(cell.strip() for cell in row):
+                continue
+            if row[0].strip().startswith('说明'):
+                continue
+            data_rows.append(row)
+
+        if not data_rows:
+            messages.error(request, 'CSV文件中没有数据行')
+            return redirect('inventory_list')
+
+        # Group rows by (name, spec) to detect split vs non-split
+        def _get(row, key, default=''):
+            idx = col_map.get(key)
+            if idx is None or idx >= len(row):
+                return default
+            return row[idx].strip()
+
+        groups = {}  # (name, spec) -> list of rows
+        for row in data_rows:
+            name = _get(row, 'name')
+            spec = _get(row, 'spec')
+            if not name:
+                continue
+            key = (name, spec)
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(row)
+
+        created_inv = 0
+        created_ai = 0
+        errors = []
+
+        with transaction.atomic():
+            for (name, spec), group_rows in groups.items():
+                first_row = group_rows[0]
+                is_split = len(group_rows) > 1
+
+                # Determine code
+                code = _get(first_row, 'code')
+                if not code:
+                    code = _generate_inventory_code(user_group)
+                elif Inventory.objects.filter(code=code).exists():
+                    errors.append(f'备件编码「{code}」已存在，跳过「{name}」')
+                    continue
+
+                # Parse common fields from first row
+                unit_raw = _get(first_row, 'unit')
+                unit = UNIT_REVERSE.get(unit_raw, '个')
+
+                qty_str = _get(first_row, 'quantity')
+                if is_split:
+                    qty = len(group_rows)
+                else:
+                    qty = int(qty_str) if qty_str else 0
+
+                safety_str = _get(first_row, 'safety_stock')
+                safety_stock = int(safety_str) if safety_str else 10
+
+                location = _get(first_row, 'location')
+                status_raw = _get(first_row, 'status')
+                status = STATUS_REVERSE.get(status_raw, 'idle')
+                quality_raw = _get(first_row, 'quality')
+                quality = QUALITY_REVERSE.get(quality_raw, 'good')
+                manufacturer = _get(first_row, 'manufacturer')
+                configuration = _get(first_row, 'configuration')
+                importance_raw = _get(first_row, 'importance')
+                importance = IMPORTANCE_REVERSE.get(importance_raw, 'normal')
+                sec_raw = _get(first_row, 'security_level')
+                security_level = SECURITY_REVERSE.get(sec_raw, 'internal')
+
+                # Create Inventory
+                inv = Inventory.objects.create(
+                    code=code, name=name, spec=spec, quantity=qty, unit=unit,
+                    safety_stock=safety_stock, location=location, group=user_group,
+                    status=status, quality=quality, manufacturer=manufacturer,
+                    configuration=configuration, importance=importance,
+                    security_level=security_level,
+                    variety_code='',
+                    asset_code='',
+                )
+                created_inv += 1
+
+                if is_split:
+                    # Each row = one AssetItem
+                    for row in group_rows:
+                        variety_code = _get(row, 'variety_code')
+                        asset_code = _get(row, 'asset_code')
+                        AssetItem.objects.create(
+                            inventory=inv,
+                            asset_code=asset_code,
+                            variety_code=variety_code,
+                            status='in_stock',
+                        )
+                        created_ai += 1
+                else:
+                    # Single row, codes go on Inventory
+                    inv.variety_code = _get(first_row, 'variety_code')
+                    inv.asset_code = _get(first_row, 'asset_code')
+                    inv.save(update_fields=['variety_code', 'asset_code'])
+
+        if errors:
+            for e in errors:
+                messages.warning(request, e)
+
+        msg = f'导入完成！创建了 {created_inv} 个备件'
+        if created_ai:
+            msg += f'、{created_ai} 条单品行'
+        messages.success(request, msg)
+        return redirect('inventory_list')
+
+    return redirect('inventory_list')
 
 
 # ==================== INBOUND ====================
@@ -477,26 +751,7 @@ def inbound(request):
                         'post_data': request.POST,
                     })
 
-                # Auto-generate code: group-prefix + number
-                from apps.accounts.models import GroupProfile
-                prefix = GroupProfile.get_prefix(user_group)
-                last = Inventory.objects.filter(
-                    code__startswith=prefix,
-                    group=user_group,
-                ).order_by('-code').first()
-                if last:
-                    try:
-                        num = int(last.code.split('-')[1]) + 1
-                    except (IndexError, ValueError):
-                        num = 1
-                else:
-                    num = 1
-                code = f'{prefix}-{num:03d}'
-
-                # Ensure unique
-                while Inventory.objects.filter(code=code).exists():
-                    num += 1
-                    code = f'{prefix}-{num:03d}'
+                code = _generate_inventory_code(user_group)
 
                 item = Inventory.objects.create(
                     code=code, name=name,
@@ -609,10 +864,12 @@ def outbound(request):
                 ai.status = 'out'
                 ai.save(update_fields=['status'])
 
-            OutboundRecord.objects.create(
+            outbound_record = OutboundRecord.objects.create(
                 inventory=item, quantity=qty, recipient=recipient or request.user.username,
                 purpose=purpose, group=user_group, operator=request.user, note=note,
             )
+            if in_stock_items:
+                outbound_record.asset_items.set(in_stock_items)
 
             AuditLog.objects.create(
                 inventory=item, operator=request.user, group=user_group,
@@ -653,9 +910,7 @@ def log_list(request):
         queryset = queryset.filter(change_type=log_type)
 
     # Filter by group
-    group_id = request.GET.get('group', '')
-    if group_id:
-        queryset = queryset.filter(group_id=group_id)
+    queryset, group_id = _apply_group_filter(request, queryset)
 
     page_obj = _paginate(request, queryset)
 

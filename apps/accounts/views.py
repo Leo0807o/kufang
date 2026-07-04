@@ -203,6 +203,7 @@ def _require_group_admin(request):
 def _export_group_data_csv(group):
     """Generate a ZIP file of all CSVs for a group's data. Returns bytes."""
     from apps.warehouse.models import Inventory, InboundRecord, OutboundRecord, AuditLog
+    from apps.warehouse.export_utils import format_export_datetime
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -240,18 +241,32 @@ def _export_group_data_csv(group):
         w.writerow(['备件', '数量', '入库类型', '操作人', '备注', '时间'])
         for r in inbounds:
             w.writerow([r.inventory.name, r.quantity, r.get_type_display(),
-                        r.operator.username, r.note, r.created_at.strftime('%Y-%m-%d %H:%M')])
+                        r.operator.username, r.note, format_export_datetime(r.created_at)])
         zf.writestr('入库记录.csv', in_csv.getvalue().encode('utf-8-sig'))
 
         # Outbound records
-        outbounds = OutboundRecord.objects.filter(group=group).select_related('inventory', 'operator')
+        outbounds = OutboundRecord.objects.filter(group=group).select_related(
+            'inventory', 'operator'
+        ).prefetch_related('asset_items')
         out_csv = io.StringIO()
         out_csv.write('﻿')
         w = csv.writer(out_csv)
-        w.writerow(['备件', '数量', '领用人', '用途', '操作人', '备注', '时间'])
+        w.writerow(['备件', '数量', '领用人', '用途', '操作人', '备注', '唯一资产码', '品种标识码', '时间'])
         for r in outbounds:
-            w.writerow([r.inventory.name, r.quantity, r.recipient, r.get_purpose_display(),
-                        r.operator.username, r.note, r.created_at.strftime('%Y-%m-%d %H:%M')])
+            asset_items = list(r.asset_items.all())
+            if asset_items:
+                for ai in asset_items:
+                    w.writerow([
+                        r.inventory.name, 1, r.recipient, r.get_purpose_display(),
+                        r.operator.username, r.note, ai.asset_code or r.inventory.asset_code,
+                        ai.variety_code or r.inventory.variety_code, format_export_datetime(r.created_at)
+                    ])
+            else:
+                w.writerow([
+                    r.inventory.name, r.quantity, r.recipient, r.get_purpose_display(),
+                    r.operator.username, r.note, r.inventory.asset_code,
+                    r.inventory.variety_code, format_export_datetime(r.created_at)
+                ])
         zf.writestr('出库记录.csv', out_csv.getvalue().encode('utf-8-sig'))
 
         # Audit logs
@@ -261,7 +276,7 @@ def _export_group_data_csv(group):
         w = csv.writer(log_csv)
         w.writerow(['时间', '类型', '备件', '变动数量', '变动前', '变动后', '操作人', '备注'])
         for r in logs:
-            w.writerow([r.created_at.strftime('%Y-%m-%d %H:%M'), r.get_change_type_display(),
+            w.writerow([format_export_datetime(r.created_at), r.get_change_type_display(),
                         r.inventory.name, r.delta, r.before_qty, r.after_qty,
                         r.operator.username, r.note])
         zf.writestr('流水日志.csv', log_csv.getvalue().encode('utf-8-sig'))
